@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+# encoding: utf-8
+import argparse
+import uuid
+from socket import getfqdn
+from arconfig import GenConfigAction, LoadConfigAction
+from lumper.log_setter import LogSetterAction
+
+
+def server(args):
+    import tornado.ioloop
+    from tornado.web import Application
+    from tornado.httpserver import HTTPServer
+    from tornado.log import app_log as log
+    from lumper.server import HANDLERS
+    from crew.master.tornado import Client
+    from pika import PlainCredentials
+
+    crew_client = Client(
+        host=args.rmq_address, port=args.rmq_port, virtualhost=args.rmq_vhost,
+        credentials=PlainCredentials(username=args.rmq_user, password=args.rmq_password)
+    )
+
+    crew_client.connect()
+
+    app = Application(
+        args=args,
+        handlers=HANDLERS,
+        xsrf_cookies=False,
+        cookie_secret=args.cookie_secret,
+        debug=args.debug,
+        reload=args.debug,
+        gzip=args.gzip,
+        crew=crew_client
+    )
+
+    http_server = HTTPServer(app, xheaders=True)
+    http_server.listen(args.port, address=args.address)
+    log.info('Server started {host}:{port}'.format(host=args.address, port=args.port))
+    try:
+        tornado.ioloop.IOLoop.instance().start()
+    except Exception as e:
+        log.exception(e)
+        log.fatal("Server aborted by error: %r", e)
+
+    return 0
+
+
+def worker(args):
+    from crew.worker import Listener, Context, NODE_UUID, UUID
+    from pika import PlainCredentials
+    from crew.worker import context
+    import logging
+    import lumper.worker
+
+    log = logging.getLogger("main")
+    try:
+        Listener(
+            port=args.port,
+            host=args.address,
+            credentials=PlainCredentials(username=args.user, password=args.password) if args.user else None,
+            virtual_host=args.vhost,
+            handlers=context.handlers,
+            set_context=Context(
+                options=args,
+                node_uuid=NODE_UUID,
+                uuid=UUID,
+                heartbeat_counter = 0,
+            )
+        ).loop()
+    except Exception as e:
+        log.exception(e)
+        log.fatal("Exiting by fatal error: %s", e)
+    return 0
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers(dest='cmd')
+    subparsers.required = True
+
+    subparser = subparsers.add_parser("server", help="Run http backend")
+    subparser.add_argument("--config", action=LoadConfigAction)
+    subparser.add_argument("--gen-config", action=GenConfigAction)
+
+    group = subparser.add_argument_group("Server options")
+    group.add_argument('-a', '--address', dest="address", help="Listen this address", default="localhost")
+    group.add_argument('-p', '--port', dest="port", help="Listen this port", type=int, default=8228)
+
+    group.add_argument('--secret', dest="cookie_secret",
+                       help="Cookie secret", default=str(uuid.uuid3(uuid.NAMESPACE_DNS, getfqdn())))
+
+    group.add_argument('--gzip', dest="gzip", help="Gzip HTTP responses", action='store_true', default=False)
+
+    group.add_argument('--debug', dest="debug", help="Debugging mode", default=False, action="store_true")
+    group.add_argument('--logging', dest="logging", help="Logging level", action=LogSetterAction)
+
+    group.add_argument('-A', '--rmq-address', dest="rmq_address", help="RMQ host address", default="localhost")
+    group.add_argument('-P', '--rmq-port', dest="rmq_port", help="RMQ host port", type=int, default=5672)
+    group.add_argument('-H', '--vhost', dest="rmq_vhost", help="RMQ virtual host", default="/")
+    group.add_argument('--user', dest="rmq_user", help="RMQ virtual host", default=None)
+    group.add_argument('--password', dest="rmq_password", help="RMQ virtual host", default=None)
+
+    subparser = subparsers.add_parser("worker", help="Run in worker mode")
+    subparser.add_argument("--config", action=LoadConfigAction)
+    subparser.add_argument("--gen-config", action=GenConfigAction)
+
+    group = subparser.add_argument_group("Worker options")
+    group.add_argument('-a', '--address', dest="address", help="RMQ host address", default="localhost")
+    group.add_argument('-p', '--port', dest="port", help="RMQ host port", type=int, default=5672)
+    group.add_argument('-H', '--vhost', dest="vhost", help="RMQ virtual host", default="/")
+    group.add_argument('-U', '--user', dest="user", help="RMQ username", default=None)
+    group.add_argument('-P', '--password', dest="password", help="RMQ password", default=None)
+    group.add_argument('--logging', dest="logging", help="Logging level", action=LogSetterAction)
+
+    args = parser.parse_args()
+
+    if args.cmd == 'server':
+        exit(server(args))
+    elif args.cmd == 'worker':
+        exit(worker(args))
+    else:
+        print ("Incompatible mode")
+        exit(128)

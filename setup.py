@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 # encoding: utf-8
 from __future__ import absolute_import, print_function
+from setuptools import find_packages
 import os
 
-def rpath(*start_paths):
-    packages = set()
-    for start_path in start_paths:
-        if os.path.exists(os.path.join(start_path, '__init__.py')):
-            packages.add(start_path)
-            for cdir, dirs, files in os.walk(start_path):
-                for d in dirs:
-                    path = os.path.join(cdir, d)
-                    if os.path.exists(os.path.join(path, '__init__.py')):
-                        packages.add(path.replace(os.sep, "."))
-    return list(packages)
+# def rpath(*start_paths):
+#     packages = set()
+#     for start_path in start_paths:
+#         if os.path.exists(os.path.join(start_path, '__init__.py')):
+#             packages.add(start_path)
+#             for cdir, dirs, files in os.walk(start_path):
+#                 for d in dirs:
+#                     path = os.path.join(cdir, d)
+#                     if os.path.exists(os.path.join(path, '__init__.py')):
+#                         packages.add(path.replace(os.sep, "."))
+#     return list(packages)
 
 try:
     from setuptools import setup
@@ -27,12 +28,12 @@ __author__ = 'Dmitry Orlov <me@mosquito.su>'
 
 supports = {
     'install_requires': [
-        'flask',
-        'Flask-Api',
+        'tornado',
         'arconfig',
-        'pymongo',
-        'eventlet',
-        'celery'
+        'crew',
+        'gitpython',
+        'docker-py',
+        'arrow'
     ]
 }
 
@@ -53,6 +54,6 @@ setup(
     #     'lumper.some': ['rc/*'],
     # },
     long_description=open('README.rst').read(),
-    packages=rpath('lumper'),
+    packages=find_packages(),
     **supports
 )

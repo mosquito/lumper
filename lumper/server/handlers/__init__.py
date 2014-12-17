@@ -1,4 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import db
+from heartbeat import HeartBeat
+from webhook import GitHubWebHookHandler

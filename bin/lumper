@@ -8,37 +8,18 @@ from lumper.log_setter import LogSetterAction
 
 
 def server(args):
-    import tornado.ioloop
-    from tornado.web import Application
-    from tornado.httpserver import HTTPServer
-    from tornado.log import app_log as log
-    from lumper.server import HANDLERS
-    from crew.master.tornado import Client
-    from pika import PlainCredentials
+    import eventlet
+    import logging
+    from eventlet import wsgi
+    from lumper.server import app
+    from lumper.server import handlers
 
-    crew_client = Client(
-        host=args.rmq_address, port=args.rmq_port, virtualhost=args.rmq_vhost,
-        credentials=PlainCredentials(username=args.rmq_user, password=args.rmq_password)
-    )
+    log = logging.getLogger()
 
-    crew_client.connect()
-
-    app = Application(
-        args=args,
-        handlers=HANDLERS,
-        xsrf_cookies=False,
-        cookie_secret=args.cookie_secret,
-        debug=args.debug,
-        reload=args.debug,
-        gzip=args.gzip,
-        crew=crew_client
-    )
-
-    http_server = HTTPServer(app, xheaders=True)
-    http_server.listen(args.port, address=args.address)
     log.info('Server started {host}:{port}'.format(host=args.address, port=args.port))
+
     try:
-        tornado.ioloop.IOLoop.instance().start()
+        wsgi.server(eventlet.listen((args.address, args.port)), app)
     except Exception as e:
         log.exception(e)
         log.fatal("Server aborted by error: %r", e)
@@ -51,11 +32,18 @@ def worker(args):
     from pika import PlainCredentials
     from crew.worker import context
     import logging
+    import pymongo
     import lumper.worker
+
+    if "replicaSet=" in args.db_url:
+        MONGO_CLIENT = pymongo.MongoReplicaSetClient
+    else:
+        MONGO_CLIENT = pymongo.MongoClient
 
     log = logging.getLogger("main")
     try:
-        Listener(
+        db = MONGO_CLIENT(args.db_url, waitQueueTimeoutMS=100)[args.db_name]
+        l = Listener(
             port=args.port,
             host=args.address,
             credentials=PlainCredentials(username=args.user, password=args.password) if args.user else None,
@@ -66,12 +54,16 @@ def worker(args):
                 node_uuid=NODE_UUID,
                 uuid=UUID,
                 heartbeat_counter = 0,
+                db=db
             )
-        ).loop()
+        )
+
+        lumper.worker.db.declare(db)
+        return l.loop()
     except Exception as e:
         log.exception(e)
         log.fatal("Exiting by fatal error: %s", e)
-    return 0
+        return 128
 
 
 if __name__ == "__main__":
@@ -88,13 +80,14 @@ if __name__ == "__main__":
     group.add_argument('-a', '--address', dest="address", help="Listen this address", default="localhost")
     group.add_argument('-p', '--port', dest="port", help="Listen this port", type=int, default=8228)
 
-    group.add_argument('--secret', dest="cookie_secret",
-                       help="Cookie secret", default=str(uuid.uuid3(uuid.NAMESPACE_DNS, getfqdn())))
+    group.add_argument('--secret', dest="cookie_secret", help="Cookie secret",
+                       default=str(uuid.uuid3(uuid.NAMESPACE_DNS, getfqdn())))
 
-    group.add_argument('--gzip', dest="gzip", help="Gzip HTTP responses", action='store_true', default=False)
+    group.add_argument('--gzip', dest="gzip", help="Gzip HTTP responses [default: False]", action='store_true', default=False)
 
     group.add_argument('--debug', dest="debug", help="Debugging mode", default=False, action="store_true")
-    group.add_argument('--logging', dest="logging", help="Logging level", action=LogSetterAction)
+    group.add_argument('--logging', dest="logging", help="Logging level. [default: info]",
+                        choices=('debug', 'info', 'warning', 'error', 'fatal'), action=LogSetterAction)
 
     group.add_argument('-A', '--rmq-address', dest="rmq_address", help="RMQ host address", default="localhost")
     group.add_argument('-P', '--rmq-port', dest="rmq_port", help="RMQ host port", type=int, default=5672)
@@ -107,12 +100,16 @@ if __name__ == "__main__":
     subparser.add_argument("--gen-config", action=GenConfigAction)
 
     group = subparser.add_argument_group("Worker options")
-    group.add_argument('-a', '--address', dest="address", help="RMQ host address", default="localhost")
-    group.add_argument('-p', '--port', dest="port", help="RMQ host port", type=int, default=5672)
-    group.add_argument('-H', '--vhost', dest="vhost", help="RMQ virtual host", default="/")
-    group.add_argument('-U', '--user', dest="user", help="RMQ username", default=None)
-    group.add_argument('-P', '--password', dest="password", help="RMQ password", default=None)
-    group.add_argument('--logging', dest="logging", help="Logging level", action=LogSetterAction)
+    group.add_argument('-a', '--address', dest="address", help="RMQ host address [default: localhost]", default="localhost")
+    group.add_argument('-p', '--port', dest="port", help="RMQ host port [default: 5672]", type=int, default=5672)
+    group.add_argument('-H', '--vhost', dest="vhost", help="RMQ virtual host [default: /]", default="/")
+    group.add_argument('-U', '--user', dest="user", help="RMQ username [not set by default]", default=None)
+    group.add_argument('-P', '--password', dest="password", help="RMQ password [not set by default]", default=None)
+    group.add_argument('--logging', dest="logging", help="Logging level. [default: info]",
+                        choices=('debug', 'info', 'warning', 'error', 'fatal'), action=LogSetterAction)
+
+    group.add_argument('-D', '--db-url', dest="db_url", help="Mongodb DB URL [default: mongodb://localhost/lumper]", default="mongodb://localhost/lumper")
+    group.add_argument('--db-name', dest="db_name", help="Name of the database [default: lumper]", default="lumper")
 
     args = parser.parse_args()
 

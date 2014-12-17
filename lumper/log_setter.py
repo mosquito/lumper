@@ -3,6 +3,8 @@
 import argparse
 import logging
 import sys
+import os
+from tornado.log import LogFormatter
 
 
 class LogSetterAction(argparse.Action):
@@ -12,7 +14,11 @@ class LogSetterAction(argparse.Action):
         if nargs is not None:
             raise ValueError("nargs not allowed")
 
-        logging.basicConfig(format=self.FORMAT, level=logging.INFO)
+        root = logging.getLogger()
+        handler = logging.StreamHandler()
+        handler.setFormatter(LogFormatter(color='color' in os.environ.get('TERM', '')))
+        root.setLevel(logging.INFO)
+        root.handlers = [handler]
         super(self.__class__, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -23,18 +29,7 @@ class LogSetterAction(argparse.Action):
         root = logging.getLogger()
 
         level = getattr(logging, level.upper(), logging.INFO)
-
-        fmt = root.handlers[0].formatter
-        if root.handlers:
-            for handler in root.handlers:
-                root.removeHandler(handler)
-
-        handler = logging.StreamHandler(stream=sys.stderr)
-        handler.setFormatter(fmt)
-
         lvl = root.level if not level else level
-
-        root.addHandler(handler)
         root.setLevel(lvl)
 
         root.info('Logging level is "{0}"'.format(logging._levelNames[lvl]))

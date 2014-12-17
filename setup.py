@@ -27,9 +27,12 @@ __author__ = 'Dmitry Orlov <me@mosquito.su>'
 
 supports = {
     'install_requires': [
-        'tornado',
+        'flask',
+        'Flask-Api',
         'arconfig',
-        'crew',
+        'pymongo',
+        'eventlet',
+        'celery'
     ]
 }
 

@@ -78,7 +78,7 @@ class GitHubWebHookHandler(JSONRequest):
                     "name": self.json['repository']['full_name']
                 }
 
-                self.settings['crew'].call("build", data, routing_key="build.finished", expiration=600)
+                self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=600)
                 self.response(True)
         else:
             self.response(False)

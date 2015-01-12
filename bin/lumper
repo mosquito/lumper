@@ -5,94 +5,6 @@ import uuid
 from socket import getfqdn
 from arconfig import GenConfigAction, LoadConfigAction
 from lumper.log_setter import LogSetterAction
-import docker
-import docker.tls
-
-
-def server(args):
-    import tornado.ioloop
-    from tornado.web import Application
-    from tornado.httpserver import HTTPServer
-    from tornado.log import app_log as log
-    from lumper.server import HANDLERS
-    from crew.master.tornado import Client
-    from pika import PlainCredentials
-
-    crew_client = Client(
-        host=args.rmq_address, port=args.rmq_port, virtualhost=args.rmq_vhost,
-        credentials=PlainCredentials(username=args.rmq_user, password=args.rmq_password)
-    )
-
-    app = Application(
-        args=args,
-        handlers=HANDLERS,
-        xsrf_cookies=False,
-        cookie_secret=args.cookie_secret,
-        debug=args.debug,
-        reload=args.debug,
-        gzip=args.gzip,
-        crew=crew_client,
-    )
-
-    http_server = HTTPServer(app, xheaders=True)
-    http_server.listen(args.port, address=args.address)
-    log.info('Server started {host}:{port}'.format(host=args.address, port=args.port))
-
-    try:
-        tornado.ioloop.IOLoop.instance().start()
-    except Exception as e:
-        log.exception(e)
-        log.fatal("Server aborted by error: %r", e)
-
-    return 0
-
-
-def worker(args):
-    from crew.worker import Listener, Context, NODE_UUID, UUID
-    from pika import PlainCredentials
-    from crew.worker import context
-    import logging
-    import lumper.worker
-
-    log = logging.getLogger()
-
-    if args.docker_tls:
-        tls=docker.tls.TLSConfig(
-            client_cert=(args.docker_client_cert, args.docker_client_key),
-            ca_cert=args.docker_ca_cert, assert_hostname=False
-        )
-        docker_url =  "https://%s:%s" % (args.docker_host, args.docker_port)
-    else:
-        tls = False
-        docker_url = "http://%s:%s" % (args.docker_host, args.docker_port)
-
-    docker_client = docker.Client(base_url=docker_url, tls=tls, timeout=5)
-    docker_client.verify = args.docker_tls_strict
-
-    log.info('Testing docker connection: %s', docker_url)
-    docker_client.info()
-
-    log = logging.getLogger("main")
-    try:
-        Listener(
-            port=args.port,
-            host=args.address,
-            credentials=PlainCredentials(username=args.user, password=args.password) if args.user else None,
-            virtual_host=args.vhost,
-            handlers=context.handlers,
-            set_context=Context(
-                options=args,
-                node_uuid=NODE_UUID,
-                uuid=UUID,
-                heartbeat_counter = 0,
-                docker=docker_client
-            )
-        ).loop()
-    except Exception as e:
-        log.exception(e)
-        log.fatal("Exiting by fatal error: %s", e)
-    return 0
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -128,31 +40,58 @@ if __name__ == "__main__":
     subparser.add_argument("--config", action=LoadConfigAction)
     subparser.add_argument("--gen-config", action=GenConfigAction)
 
-    group = subparser.add_argument_group("Worker options")
-    group.add_argument('-a', '--address', dest="address", help="RMQ host address", default="localhost")
-    group.add_argument('-p', '--port', dest="port", help="RMQ host port", type=int, default=5672)
-    group.add_argument('-H', '--vhost', dest="vhost", help="RMQ virtual host", default="/")
-    group.add_argument('-U', '--user', dest="user", help="RMQ username", default=None)
-    group.add_argument('-P', '--password', dest="password", help="RMQ password", default=None)
+    group = subparser.add_argument_group("Main options")
     group.add_argument('--logging', dest="logging", help="Logging level", action=LogSetterAction)
 
-    group.add_argument('--docker-host', dest="docker_host", help="Docker daemon host", default="127.0.0.1")
-    group.add_argument('--docker-port', dest="docker_port", help="Docker daemon port", default=4142)
+    group = subparser.add_argument_group("RabbitMQ options")
+    group.add_argument('-a', '--address', dest="amqp_address", help="RMQ host address", default="localhost")
+    group.add_argument('-p', '--port', dest="amqp_port", help="RMQ host port", type=int, default=5672)
+    group.add_argument('-H', '--vhost', dest="amqp_vhost", help="RMQ virtual host", default="/")
+    group.add_argument('-U', '--user', dest="amqp_user", help="RMQ username", default=None)
+    group.add_argument('-P', '--password', dest="amqp_password", help="RMQ password", default=None)
+
+    group = subparser.add_argument_group("Docker options")
+    group.add_argument('--docker-url', dest="docker_url",
+                       help="Docker daemon url [\"unix:///var/run/docker.sock\"]",
+                       default="unix:///var/run/docker.sock")
     group.add_argument('--docker-tls', dest="docker_tls", help="Set when a docker daemon use TLS", action="store_true")
     group.add_argument('--docker-ca', dest="docker_ca_cert", help="TLS certificate authority", default="ca.crt")
     group.add_argument('--docker-cert', dest="docker_client_cert", help="TLS client certificate", default="client.crt")
     group.add_argument('--docker-key', dest="docker_client_key", help="TLS client private key", default="client.pem")
-    group.add_argument(
-        '--docker-tls-strict', dest="docker_tls_strict", help="Strict verification server certificate",
-        action="store_true"
-    )
+    group.add_argument('--docker-tls-strict', dest="docker_tls_strict", help="Strict verification server certificate",
+                        action="store_true")
+
+    subparser = subparsers.add_parser("mailer", help="Run as mailer delivery worker")
+    subparser.add_argument("--config", action=LoadConfigAction)
+    subparser.add_argument("--gen-config", action=GenConfigAction)
+
+    group = subparser.add_argument_group("RabbitMQ options")
+    group.add_argument('-a', '--address', dest="amqp_address", help="RMQ host address", default="localhost")
+    group.add_argument('-p', '--port', dest="amqp_port", help="RMQ host port", type=int, default=5672)
+    group.add_argument('-H', '--vhost', dest="amqp_vhost", help="RMQ virtual host", default="/")
+    group.add_argument('-U', '--user', dest="amqp_user", help="RMQ username", default=None)
+    group.add_argument('-P', '--password', dest="amqp_password", help="RMQ password", default=None)
+
+    group = subparser.add_argument_group("SMTP options")
+    group.add_argument("--smtp-host", dest="smtp_host", help="Server host", default="localhost")
+    group.add_argument("--smtp-port", dest="smtp_port", help="Server port", type=int, default=25)
+    group.add_argument("--smtp-user", dest="smtp_user", help="Authentication username. Do auth if set.", default=None, type=str)
+    group.add_argument("--smtp-password", dest="smtp_password", help="Password.", default=None, type=str)
 
     args = parser.parse_args()
 
     if args.cmd == 'server':
-        exit(server(args))
+        from lumper.modes.server import run
+        exit(run(args))
+
     elif args.cmd == 'worker':
-        exit(worker(args))
+        from lumper.modes.worker import run
+        exit(run(args))
+
+    elif args.cmd == 'mailer':
+        from lumper.modes.mailer import run
+        exit(run(args))
+
     else:
         print ("Incompatible mode")
         exit(128)

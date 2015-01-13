@@ -81,6 +81,28 @@ if __name__ == "__main__":
     group.add_argument("--smtp-port", dest="smtp_port", help="Server port", type=int, default=25)
     group.add_argument("--smtp-user", dest="smtp_user", help="Authentication username. Do auth if set.", default=None, type=str)
     group.add_argument("--smtp-password", dest="smtp_password", help="Password.", default=None, type=str)
+    group.add_argument("--smtp-tls", dest="smtp_tls", help="Use TLS.", action='store_true')
+    default_sender = "lumper@%s" % (getfqdn())
+    group.add_argument(
+        "--smtp-sender", dest="smtp_sender",
+        help="Sender of messages [default: %s]" % default_sender,
+        default=default_sender
+    )
+
+    class OpenJsonAction(argparse.Action):
+        def __call__(self, parser, args, values, option_string=None):
+            setattr(args, self.dest, json.load(open(values, 'r')))
+            return self.__class__
+
+    default_user = "root@%s" % (getfqdn())
+    group = subparser.add_argument_group("Delivery options")
+    group.add_argument("--mail-map", dest="mail_map", help="github user to E-mail map json file with hash.", action=OpenJsonAction)
+    group.add_argument(
+        "--admin-mail",
+        dest="admin_mail",
+        help="admin email for unknown users [default: %s]" % default_user,
+        default=default_user
+    )
 
     args = parser.parse_args()
 

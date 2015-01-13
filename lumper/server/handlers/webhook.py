@@ -75,7 +75,8 @@ class GitHubWebHookHandler(JSONRequest):
                     "commit": commit['id'],
                     "message": commit['message'],
                     "timestamp": arrow.get(commit['timestamp']).timestamp,
-                    "name": self.json['repository']['full_name']
+                    "name": self.json['repository']['full_name'],
+                    "sender": self.json['sender']['login']
                 }
 
                 self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=600)

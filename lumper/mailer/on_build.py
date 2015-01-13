@@ -69,34 +69,47 @@ class Email(object):
 
 @Task("build.finished")
 def on_build(data):
-    if context.settings.options.mail_map:
-        recepient = context.settings.options.mail_map.get(data['sender'], context.settings.options.admin_mail)
-    else:
-        recepient = context.settings.options.admin_mail
-    email = Email(
-        sender=context.settings.smtp.sender,
-        recipient=recepient,
-        subject="[%s] <%s> Build successful" % (data['tag'], data['name'])
-    )
+    if isinstance(data, Exception):
+        email = Email(
+            sender=context.settings.smtp.sender,
+            recipient=context.settings.options.admin_mail,
+            subject="Build exception"
+        )
 
-    email.append(
-        "\n".join([
-            "Build %s sucessful" % data['name'],
-            "\n",
-            "Sender: %s" % data['sender'],
-            "Repository: %s" % data['repo'],
-            "Commit: %s" % data['commit'],
-            "Commit message: %s" % data['message'],
-            "Tag: %s" % data['tag'],
-            "Build timestamp: %s" % data['timestamp'],
-            "Build date: %s" % datetime.fromtimestamp(data['timestamp']),
-            "\nBuild log:\n\t%s" % "\n\t".join(data['build_log']),
-        ]), mimetype="text/plain")
+        email.append(
+            "Build log: \n\t%s\n\nError: %r\n\nTraceback: %s\n" % ("\n\t".join(data.log), data, data._tb),
+            mimetype="text/plain"
+        )
+    else:
+        if context.settings.options.mail_map:
+            recepient = context.settings.options.mail_map.get(data['sender'], context.settings.options.admin_mail)
+        else:
+            recepient = context.settings.options.admin_mail
+
+        email = Email(
+            sender=context.settings.smtp.sender,
+            recipient=recepient,
+            subject="[%s] <%s> Build successful" % (data['tag'], data['name'])
+        )
+
+        email.append(
+            "\n".join([
+                "Build %s sucessful" % data['name'],
+                "\n",
+                "Sender: %s" % data['sender'],
+                "Repository: %s" % data['repo'],
+                "Commit: %s" % data['commit'],
+                "Commit message: %s" % data['message'],
+                "Tag: %s" % data['tag'],
+                "Build timestamp: %s" % data['timestamp'],
+                "Build date: %s" % datetime.fromtimestamp(data['timestamp']),
+                "\nBuild log:\n\t%s" % "\n\t".join(data['build_log']),
+            ]), mimetype="text/plain")
 
     return email.send(
-        host=context.settings.smtp.host,
-        port=context.settings.smtp.port,
-        user=context.settings.smtp.user,
-        password=context.settings.smtp.password,
-        tls=context.settings.smtp.tls
-    )
+            host=context.settings.smtp.host,
+            port=context.settings.smtp.port,
+            user=context.settings.smtp.user,
+            password=context.settings.smtp.password,
+            tls=context.settings.smtp.tls
+        )

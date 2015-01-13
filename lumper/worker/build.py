@@ -71,6 +71,29 @@ class BuildHandler(HandlerClass):
             exc.log = self.build_log
             return exc
 
+    def push(self):
+        registry = context.settings.options.docker_registry
+        use_ssl = context.settings.options.docker_ssl_registry
+
+        if not context.settings.options.docker_registry:
+            log.warning("PUSHING TO PUBLIC DOCKER REGISTRY.")
+
+        log.info(
+            "Preparing to push to the registry: %s://%s",
+            'https' if use_ssl else 'http', registry if registry else 'public'
+        )
+
+        repo = "%s/%s" % (registry, self.data['name']) if registry else self.data['repo']
+
+        stream = self.docker.push(repo, tag=self.data.get('tag', time.time()), insecure_registry=not use_ssl)
+
+        self.build_log.append(
+            "Pushing into registry %s://%s" % ('https' if use_ssl else 'http', registry if registry else 'public')
+        )
+
+        for line in stream:
+            self.build_log.append(line)
+
     def prepare(self, path):
         url = self.data['repo']
         log.info('Cloning repo "%s" => "%s"', url, path)

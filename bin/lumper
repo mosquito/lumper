@@ -63,6 +63,13 @@ if __name__ == "__main__":
     group.add_argument('--docker-key', dest="docker_client_key", help="TLS client private key", default="client.pem")
     group.add_argument('--docker-tls-strict', dest="docker_tls_strict", help="Strict verification server certificate",
                         action="store_true")
+    group.add_argument('--docker-registry', dest="docker_registry",
+                       help="Set if you have a private registry", default='localhost')
+    group.add_argument('--docker-ssl-registry', dest="docker_ssl_registry",
+                       help="The private registry use ssl", action='store_true')
+    group.add_argument('--docker-publish', dest="docker_publish",
+                       help="Set if you want push images to registry", action="store_true")
+
     # Mailer mode
     subparser = subparsers.add_parser("mailer", help="Run as mailer delivery worker")
     subparser.add_argument("--config", action=LoadConfigAction)

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import argparse
+import json
 import uuid
 from socket import getfqdn
 from arconfig import GenConfigAction, LoadConfigAction
 from lumper.log_setter import LogSetterAction
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(epilog='Notice: exec "%(prog)s <command> --help" for command options')
 
     subparsers = parser.add_subparsers(dest='cmd')
     subparsers.required = True
@@ -64,6 +65,9 @@ if __name__ == "__main__":
     subparser = subparsers.add_parser("mailer", help="Run as mailer delivery worker")
     subparser.add_argument("--config", action=LoadConfigAction)
     subparser.add_argument("--gen-config", action=GenConfigAction)
+
+    group = subparser.add_argument_group("Main options")
+    group.add_argument('--logging', dest="logging", help="Logging level", action=LogSetterAction)
 
     group = subparser.add_argument_group("RabbitMQ options")
     group.add_argument('-a', '--address', dest="amqp_address", help="RMQ host address", default="localhost")

@@ -4,6 +4,7 @@ import logging
 import json
 import os
 import shutil
+import traceback
 import git
 import re
 
@@ -11,6 +12,7 @@ from collections import defaultdict
 from crew.worker import context, HandlerClass
 from uuid import uuid4
 from tempfile import gettempdir
+import time
 
 log = logging.getLogger("builder")
 
@@ -44,21 +46,30 @@ class BuildHandler(HandlerClass):
     }
 
     def process(self):
-        self.git = git.Git()
-        self.docker = context.settings.docker
-        self.images = defaultdict(lambda: defaultdict(set))
+        try:
+            self.git = git.Git()
+            self.docker = context.settings.docker
+            self.images = defaultdict(lambda: defaultdict(set))
 
-        with TempoaryFolder() as path:
-            self.prepare(path)
-            self.get_images()
-            try:
-                self.data.update({"id": self.build(path)})
-            except Exception as e:
-                self.data.update({'error': e})
+            with TempoaryFolder() as path:
+                self.prepare(path)
+                self.get_images()
+                try:
+                    self.data.update({"id": self.build(path)})
+                except Exception as e:
+                    self.data.update({'error': e})
 
-            self.data.update({'build_log': self.build_log})
+                self.data.update({'build_log': self.build_log})
 
-        return self.data
+            if context.settings.options.docker_publish:
+                self.push()
+
+            return self.data
+        except Exception as e:
+            exc = Exception(repr(e))
+            exc._tb = traceback.format_exc(e)
+            exc.log = self.build_log
+            return exc
 
     def prepare(self, path):
         url = self.data['repo']

@@ -13,6 +13,7 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest='cmd')
     subparsers.required = True
 
+    # Server mode
     subparser = subparsers.add_parser("server", help="Run http backend")
     subparser.add_argument("--config", action=LoadConfigAction)
     subparser.add_argument("--gen-config", action=GenConfigAction)
@@ -37,6 +38,7 @@ if __name__ == "__main__":
     group.add_argument('--user', dest="rmq_user", help="RMQ virtual host", default=None)
     group.add_argument('--password', dest="rmq_password", help="RMQ virtual host", default=None)
 
+    # Worker mode
     subparser = subparsers.add_parser("worker", help="Run in worker mode")
     subparser.add_argument("--config", action=LoadConfigAction)
     subparser.add_argument("--gen-config", action=GenConfigAction)
@@ -61,7 +63,7 @@ if __name__ == "__main__":
     group.add_argument('--docker-key', dest="docker_client_key", help="TLS client private key", default="client.pem")
     group.add_argument('--docker-tls-strict', dest="docker_tls_strict", help="Strict verification server certificate",
                         action="store_true")
-
+    # Mailer mode
     subparser = subparsers.add_parser("mailer", help="Run as mailer delivery worker")
     subparser.add_argument("--config", action=LoadConfigAction)
     subparser.add_argument("--gen-config", action=GenConfigAction)

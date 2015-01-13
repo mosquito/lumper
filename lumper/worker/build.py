@@ -85,14 +85,13 @@ class BuildHandler(HandlerClass):
 
         repo = "%s/%s" % (registry, self.data['name']) if registry else self.data['repo']
 
-        stream = self.docker.push(repo, tag=self.data.get('tag', time.time()), insecure_registry=not use_ssl)
+        response = self.docker.push(repo, tag=self.data.get('tag', time.time()), insecure_registry=not use_ssl)
 
         self.build_log.append(
             "Pushing into registry %s://%s" % ('https' if use_ssl else 'http', registry if registry else 'public')
         )
 
-        for line in stream:
-            self.build_log.append(line)
+        self.build_log.append(response)
 
     def prepare(self, path):
         url = self.data['repo']

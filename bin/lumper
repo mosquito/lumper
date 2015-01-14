@@ -2,6 +2,7 @@
 # encoding: utf-8
 import argparse
 import json
+import logging
 import uuid
 from socket import getfqdn
 from arconfig import GenConfigAction, LoadConfigAction
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     group.add_argument('--docker-cert', dest="docker_client_cert", help="TLS client certificate", default="client.crt")
     group.add_argument('--docker-key', dest="docker_client_key", help="TLS client private key", default="client.pem")
     group.add_argument('--docker-tls-strict', dest="docker_tls_strict", help="Strict verification server certificate",
-                        action="store_true")
+                       action="store_true")
     group.add_argument('--docker-registry', dest="docker_registry",
                        help="Set if you have a private registry", default='localhost:5000')
     group.add_argument('--docker-ssl-registry', dest="docker_ssl_registry",
@@ -117,6 +118,9 @@ if __name__ == "__main__":
 
     if args.cmd == 'server':
         from lumper.modes.server import run
+
+        if not args.github_secret:
+            logging.getLogger().warning("Github secret is not presented. Signature checking are disabled.")
         exit(run(args))
 
     elif args.cmd == 'worker':

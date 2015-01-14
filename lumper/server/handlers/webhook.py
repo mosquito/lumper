@@ -23,14 +23,8 @@ class GitHubWebHookHandler(JSONRequest):
     def post(self, *args, **kwargs):
         self.delivery = self.request.headers.get("X-Github-Delivery")
         self.event = self.request.headers.get("X-Github-Event")
-        self.signature = self.request.headers.get("X-Hub-Signature")
 
-        is_valid = False
-        if not self.signature:
-            log.error('Request with Delivery UUID "%s" not signed. Header X-Hub-Signature is not presented.', self.delivery)
-            self.send_error(403)
-        else:
-            is_valid = self.event and self.delivery and self.verify()
+        is_valid = self.event and self.delivery and self.verify() if self.settings['args'].github_secret else None
 
         if is_valid:
             handler = getattr(self, "event_%s" % self.event, lambda: self.response("OK"))
@@ -49,8 +43,9 @@ class GitHubWebHookHandler(JSONRequest):
                 self.finish()
 
     def verify(self):
+        signature = self.request.headers.get("X-Hub-Signature")
         h = hmac.new(self.settings['args'].github_secret, self.request.body, hashlib.sha1)
-        return "sha1=%s" % h.hexdigest() == self.signature
+        return "sha1=%s" % h.hexdigest() == signature
 
     def event_ping(self):
         """ Just ping. """

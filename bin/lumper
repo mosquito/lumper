@@ -121,6 +121,8 @@ if __name__ == "__main__":
 
         if not args.github_secret:
             logging.getLogger().warning("Github secret is not presented. Signature checking are disabled.")
+        else:
+            args.github_secret = str(args.github_secret)
         exit(run(args))
 
     elif args.cmd == 'worker':

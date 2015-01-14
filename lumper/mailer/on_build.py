@@ -89,12 +89,12 @@ def on_build(data):
         email = Email(
             sender=context.settings.smtp.sender,
             recipient=recepient,
-            subject="[%s] <%s> Build successful" % (data['tag'], data['name'])
+            subject="[%s] <%s> Build %s" % (data['tag'], data['name'], 'successful' if data['status'] else 'failed')
         )
 
         email.append(
             "\n".join([
-                "Build %s sucessful" % data['name'],
+                "Build %s %s" % (data['name'], 'successful' if data['status'] else 'failed'),
                 "\n",
                 "Sender: %s" % data['sender'],
                 "Repository: %s" % data['repo'],
@@ -104,7 +104,7 @@ def on_build(data):
                 "Build timestamp: %s" % data['timestamp'],
                 "Build date: %s" % datetime.fromtimestamp(data['timestamp']),
                 "\nBuild log:\n\t%s" % "\n\t".join(data['build_log']),
-            ]), mimetype="text/plain")
+            ]))
 
     return email.send(
             host=context.settings.smtp.host,

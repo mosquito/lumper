@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import traceback
+import urllib
 import git
 import re
 
@@ -49,11 +50,9 @@ class BuildHandler(HandlerClass):
         try:
             self.git = git.Git()
             self.docker = context.settings.docker
-            self.images = defaultdict(lambda: defaultdict(set))
 
             with TempoaryFolder() as path:
                 self.prepare(path)
-                self.get_images()
                 try:
                     self.data.update({"id": self.build(path)})
                 except Exception as e:
@@ -68,30 +67,60 @@ class BuildHandler(HandlerClass):
         except Exception as e:
             exc = Exception(repr(e))
             exc._tb = traceback.format_exc(e)
-            exc.log = self.build_log
+            exc.log = getattr(self, 'build_log', [])
             return exc
 
     def push(self):
         registry = context.settings.options.docker_registry
         use_ssl = context.settings.options.docker_ssl_registry
 
+        tag = self.data['tag'].lstrip("v")
+        repo, name = ["".join(list(i)[::-1]).replace('/', '_') for i in self.data['name'][::-1].split('/', 1)][::-1]
+
         if not context.settings.options.docker_registry:
             log.warning("PUSHING TO PUBLIC DOCKER REGISTRY.")
+        else:
+            name = "%s/%s" % (repo, name)
+            repo = "%s/%s" % (registry, name)
+
+            try:
+                self.docker.tag(self.data['id'], repo, tag)
+            except Exception as e:
+                log.error(e)
 
         log.info(
             "Preparing to push to the registry: %s://%s",
-            'https' if use_ssl else 'http', registry if registry else 'public'
+            'https' if use_ssl else 'http', registry if registry else 'PUBLIC'
         )
 
-        repo = "%s/%s" % (registry, self.data['name']) if registry else self.data['repo']
+        response = self.docker.push(
+            repo, tag=tag,
+            insecure_registry=not use_ssl, stream=True)
 
-        response = self.docker.push(repo, tag=self.data.get('tag', time.time()), insecure_registry=not use_ssl)
-
+        self.build_log.append('')
         self.build_log.append(
             "Pushing into registry %s://%s" % ('https' if use_ssl else 'http', registry if registry else 'public')
         )
 
-        self.build_log.append(response)
+        for line in response:
+            chunk = json.loads(line)
+            data = chunk.get("status")
+            if chunk.get('error'):
+                self.data['status'] = False
+                details = chunk.get('errorDetail', {}).get('message')
+                log.error(details)
+                self.build_log.append(details)
+            else:
+                log.info(data)
+                self.build_log.append(data)
+
+        # if description.get('error'):
+        #     self.data['status'] = False
+        #     self.build_log.append("Status: %s" % status.get('status'))
+        #     self.build_log.append("Error: %s" % description.get("error"))
+        #     self.build_log.append("Error details: %s" % description.get("errorDetail", {}).get("message"))
+        # else:
+        #     self.build_log.append("Status: %s" % status.get('status'))
 
     def prepare(self, path):
         url = self.data['repo']
@@ -104,17 +133,6 @@ class BuildHandler(HandlerClass):
 
         log.info("Preparing complete")
 
-    def get_images(self):
-        for img in self.docker.images():
-            for tag in img['RepoTags']:
-                t = tag.split(":")
-                if len(t) > 1:
-                    repo, rtag = t
-                else:
-                    repo, rtag = t[0], None
-
-                self.images[repo][rtag].add(img['Id'])
-
     def build(self, path):
         tag = "%s:%s" % (self.data['name'], self.data['tag'].lstrip("v"))
         self.build_log = []
@@ -125,6 +143,7 @@ class BuildHandler(HandlerClass):
                 success = self.STREAM_EXPR['build_success'].match(stream)
                 self.build_log.append(stream)
                 if success:
+                    self.data['status'] = True
                     return success.groupdict()['id']
                 else:
                     log.info(stream)

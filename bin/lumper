@@ -64,7 +64,7 @@ if __name__ == "__main__":
     group.add_argument('--docker-tls-strict', dest="docker_tls_strict", help="Strict verification server certificate",
                         action="store_true")
     group.add_argument('--docker-registry', dest="docker_registry",
-                       help="Set if you have a private registry", default='localhost')
+                       help="Set if you have a private registry", default='localhost:5000')
     group.add_argument('--docker-ssl-registry', dest="docker_ssl_registry",
                        help="The private registry use ssl", action='store_true')
     group.add_argument('--docker-publish', dest="docker_publish",

@@ -43,7 +43,7 @@ setup(
     author=__author__,
     author_email='me@mosquito.su',
     license="MIT",
-    description="Builder containers for docker",
+    description="Containers builder for docker.",
     platforms="all",
     url="http://github.com/mosquito/lumper",
     classifiers=[

@@ -45,6 +45,7 @@ setup(
     license="MIT",
     description="Builder containers for docker",
     platforms="all",
+    url="http://github.com/mosquito/lumper",
     classifiers=[
         'Environment :: Console',
         'Programming Language :: Python',

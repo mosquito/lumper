@@ -112,8 +112,7 @@ class BuildHandler(HandlerClass):
                 log.error(details)
                 self.build_log.append(details)
             else:
-                log.info(data)
-                self.build_log.append(data)
+                log.debug(data)
 
         # if description.get('error'):
         #     self.data['status'] = False

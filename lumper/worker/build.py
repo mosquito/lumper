@@ -37,8 +37,9 @@ class TempoaryFolder(object):
         log.debug('Changing directory: "%s"', self._curdir)
         os.chdir(self._curdir)
 
-        log.debug('Deleting directory: "%s"', self._dir)
-        shutil.rmtree(self._dir)
+        if os.path.exists(self._dir):
+            log.debug('Deleting directory: "%s"', self._dir)
+            shutil.rmtree(self._dir)
 
 
 class BuildHandler(HandlerClass):
@@ -125,7 +126,8 @@ class BuildHandler(HandlerClass):
     def prepare(self, path):
         url = self.data['repo']
         log.info('Cloning repo "%s" => "%s"', url, path)
-        self.git.clone(url, path)
+        res = self.git.clone(url, path)
+        log.debug("Cloning result: %s", res)
 
         commit_hash = self.data['commit']
         log.info('Checkout commit "%s"', commit_hash)

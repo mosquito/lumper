@@ -5,15 +5,12 @@ import json
 import os
 import shutil
 import traceback
-import urllib
 import git
 import re
 
-from collections import defaultdict
 from crew.worker import context, HandlerClass
 from uuid import uuid4
 from tempfile import gettempdir
-import time
 
 log = logging.getLogger("builder")
 
@@ -114,14 +111,6 @@ class BuildHandler(HandlerClass):
             else:
                 log.debug(data)
 
-        # if description.get('error'):
-        #     self.data['status'] = False
-        #     self.build_log.append("Status: %s" % status.get('status'))
-        #     self.build_log.append("Error: %s" % description.get("error"))
-        #     self.build_log.append("Error details: %s" % description.get("errorDetail", {}).get("message"))
-        # else:
-        #     self.build_log.append("Status: %s" % status.get('status'))
-
     def prepare(self, path):
         url = self.data['repo']
         log.info('Cloning repo "%s" => "%s"', url, path)
@@ -131,6 +120,12 @@ class BuildHandler(HandlerClass):
         commit_hash = self.data['commit']
         log.info('Checkout commit "%s"', commit_hash)
         self.git.checkout(commit_hash)
+
+        log.info('Updating submodules')
+        for sm in git.Repo(path).submodules:
+            log.info(' Updating submodule: "%s"', sm)
+            sm.update(recursive=True, init=True)
+            log.info(' Submodule "%s" updated', sm)
 
         log.info("Preparing complete")
 

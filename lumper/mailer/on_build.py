@@ -77,7 +77,11 @@ def on_build(data):
         )
 
         email.append(
-            "Build log: \n\t%s\n\nError: %r\n\nTraceback: %s\n" % ("\n\t".join(data.log), data, data._tb),
+            "Build log: \n\t%s\n\nError: %r\n\nTraceback: %s\n" % (
+                "\n\t".join(getattr(data, "log", 'No log')),
+                data,
+                getattr(data, '_tb', "No traceback")
+            ),
             mimetype="text/plain"
         )
     else:
@@ -102,7 +106,7 @@ def on_build(data):
                 "Commit message: %s" % data.get('message'),
                 "Tag: %s" % data.get('tag'),
                 "Build timestamp: %s" % data.get('timestamp'),
-                "Build date: %s" % datetime.fromtimestamp(data['timestamp']) if data.get('timestamp') else None,
+                "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None,
                 "\nBuild log:\n\t%s" % "\n\t".join(data.get('build_log')),
             ]))
 

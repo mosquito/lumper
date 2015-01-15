@@ -61,7 +61,7 @@ class BuildHandler(HandlerClass):
 
                 self.data.update({'build_log': self.build_log})
 
-            if context.settings.options.docker_publish:
+            if self.data.get('status') and context.settings.options.docker_publish:
                 self.push()
 
             return self.data

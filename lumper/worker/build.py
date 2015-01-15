@@ -73,13 +73,13 @@ class BuildHandler(HandlerClass):
         use_ssl = context.settings.options.docker_ssl_registry
 
         tag = self.data['tag'].lstrip("v")
-        repo, name = ["".join(list(i)[::-1]).replace('/', '_') for i in self.data['name'][::-1].split('/', 1)][::-1]
+        repo, name = ["".join(list(i)[::-1]).replace('/', '_') for i in self.data['name'].lower()[::-1].split('/', 1)][::-1]
 
         if not context.settings.options.docker_registry:
             log.warning("PUSHING TO PUBLIC DOCKER REGISTRY.")
         else:
-            name = "%s/%s" % (repo, name)
-            repo = "%s/%s" % (registry, name)
+            name = ("%s/%s" % (repo, name)).lower()
+            repo = ("%s/%s" % (registry, name)).lower()
 
             try:
                 self.docker.tag(self.data['id'], repo, tag)

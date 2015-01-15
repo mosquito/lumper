@@ -130,7 +130,8 @@ class BuildHandler(HandlerClass):
         log.info("Preparing complete")
 
     def build(self, path):
-        tag = "%s:%s" % (self.data['name'], self.data['tag'].lstrip("v"))
+        tag = ("%s:%s" % (self.data['name'], self.data['tag'].lstrip("v"))).lower()
+
         self.build_log = []
         for line in self.docker.build(path, pull=True, rm=True, forcerm=True, tag=tag):
             chunk = json.loads(line)

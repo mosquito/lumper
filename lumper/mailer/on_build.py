@@ -78,7 +78,7 @@ def on_build(data):
 
         email.append(
             "Build log: \n\t%s\n\nError: %r\n\nTraceback: %s\n" % (
-                "\n\t".join(getattr(data, "log", 'No log')),
+                "\n\t".join(getattr(data, "log", ['No log',])),
                 data,
                 getattr(data, '_tb', "No traceback")
             ),

@@ -8,4 +8,4 @@ RUN                 apt-get update && \
 ADD                 . /tmp/build/
 RUN                 pip install --upgrade --pre /tmp/build && rm -fr /tmp/build
 
-ENTRYPOINT          /usr/bin/lumper
+ENTRYPOINT          ["/usr/local/bin/lumper"]

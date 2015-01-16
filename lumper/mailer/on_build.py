@@ -3,13 +3,15 @@
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from logging import getLogger
+import logging
 import smtplib
+import json
+import urllib2
 from crew.worker import context, Task
 
 
 class Email(object):
-    log = getLogger('emailer.email')
+    log = logging.getLogger('emailer.email')
 
     def __init__(self, sender, recipient, subject, headers={}):
         self.__sent = False
@@ -67,6 +69,8 @@ class Email(object):
             self.log.error("Message already sent")
             return False
 
+log = logging.getLogger('emailer.task')
+
 @Task("build.finished")
 def on_build(data):
     if isinstance(data, Exception):
@@ -109,6 +113,20 @@ def on_build(data):
                 "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None,
                 "\nBuild log:\n\t%s" % "\n\t".join(data.get('build_log')),
             ]))
+
+        if context.settings.options.build_hooks:
+            hook_data = json.dumps(data, sort_keys=False, encoding="utf-8")
+            for url in context.settings.options.build_hooks:
+                try:
+                    log.info('Sending build data to: "%s"', url)
+                    req = urllib2.Request(url)
+                    req.add_header('Content-Type', 'application/json')
+                    response = urllib2.urlopen(req, hook_data, timeout=3)
+                    log.info('Build hook response for "%s": HTTP %d', url, response.code)
+                except Exception as e:
+                    if log.getEffectiveLevel() <= logging.DEBUG:
+                        log.exception(e)
+                    log.error("Build hook error: %r", e)
 
     return email.send(
             host=context.settings.smtp.host,

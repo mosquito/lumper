@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
+import json
+from time import time
 import tornado.web
 import tornado.gen
 import hmac
@@ -17,6 +19,7 @@ REXP={
 }
 
 @register("/github/webhook/")
+@register("/webhook/github")
 class GitHubWebHookHandler(JSONRequest):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -81,78 +84,70 @@ class GitHubWebHookHandler(JSONRequest):
 
     # def event_commit_comment(self):
     #     """ Any time a Commit is commented on. """
-    #     pass
-    #
-    #
     # def event_delete(self):
     #     """ Any time a Branch or Tag is deleted. """
-    #     pass
-    #
     # def event_deployment(self):
     #     """ Any time a Repository has a new deployment created from the API. """
-    #     pass
-    #
     # def event_deployment_status(self):
     #     """ Any time a deployment for a Repository has a status update from the API. """
-    #     pass
-    #
     # def event_fork(self):
     #     """ Any time a Repository is forked. """
-    #     pass
-    #
     # def event_gollum(self):
     #     """ Any time a Wiki page is updated. """
-    #     pass
-    #
     # def event_issue_comment(self):
     #     """ Any time an Issue is commented on. """
-    #     pass
-    #
     # def event_issues(self):
     #     """ Any time an Issue is assigned, unassigned, labeled, unlabeled, opened, closed, or reopened. """
-    #     pass
-    #
     # def event_member(self):
     #     """ Any time a User is added as a collaborator to a non-Organization Repository. """
-    #     pass
-    #
     # def event_membership(self):
     #     """ Any time a User is added or removed from a team. Organization hooks only. """
-    #     pass
-    #
     # def event_page_build(self):
     #     """ Any time a Pages site is built or results in a failed build. """
-    #     pass
-    #
     # def event_public(self):
     #     """ Any time a Repository changes from private to public. """
-    #     pass
-    #
     # def event_pull_request_review_comment(self):
     #     """ Any time a Commit is commented on while inside a Pull Request review (the Files Changed tab). """
-    #     pass
-    #
     # def event_pull_request(self):
     #     """ Any time a Pull Request is assigned, unassigned, labeled, unlabeled, opened, closed, reopened, or
     #     synchronized (updated due to a (selevent_f):new push in the branch that the pull request is tracking)."""
-    #     pass
-    #
     # def event_repository(self):
     #     """ Any time a Repository is created. Organization hooks only. """
-    #     pass
-    #
     # def event_release(self):
     #     """ Any time a Release is published in a Repository. """
-    #     pass
-    #
     # def event_status(self):
     #     """ Any time a Repository has a status update from the API """
-    #     pass
-    #
     # def event_team_add(self):
     #     """ Any time a team is added or modified on a Repository. """
-    #     pass
-    #
     # def event_watch(self):
     #     """ Any time a User watches a Repository. """
-    #     pass
+
+
+@register("/webhook/gitlab")
+class CommonWebHookHandler(JSONRequest):
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        matcher = REXP['split_refs'].match(self.json.get('ref', ""))
+        if matcher:
+            refs = matcher.groupdict()
+            if refs['key'] == 'tags':
+                tag = refs['value']
+                commit = self.json.get('commits', [])
+                commit = commit[0] if commit else {}
+
+                data = {
+                    "tag": tag,
+                    "repo": self.json['repository']['url'],
+                    "commit": self.json['checkout_sha'],
+                    "message": commit.get('message', '<No message>'),
+                    "timestamp": arrow.get(commit.get('timestamp', time())).timestamp,
+                    "name": self.json['repository']['name'],
+                    "sender": self.json['user_id']
+                }
+
+                self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=600)
+                self.response(True)
+        else:
+            self.response(False)

@@ -137,13 +137,16 @@ class CommonWebHookHandler(JSONRequest):
                 commit = self.json.get('commits', [])
                 commit = commit[0] if commit else {}
 
+                repo_name = self.json['repository']['homepage'].split("/")
+                repo_name = "%s/%s" % (repo_name.pop(-2), repo_name.pop())
+
                 data = {
                     "tag": tag,
                     "repo": self.json['repository']['url'],
                     "commit": self.json['checkout_sha'],
                     "message": commit.get('message', '<No message>'),
                     "timestamp": arrow.get(commit.get('timestamp', time())).timestamp,
-                    "name": self.json['repository']['name'],
+                    "name": repo_name,
                     "sender": self.json['user_id']
                 }
 

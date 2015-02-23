@@ -33,7 +33,7 @@ class Email(object):
 
     def __init__(self, sender, recipient, subject, headers={}):
         self.__sent = False
-        self.msg = MIMEMultipart('alternative')
+        self.msg = MIMEMultipart()
         self.msg['Subject'] = subject
         self.msg['From'] = sender
         self.msg['To'] = recipient
@@ -102,14 +102,14 @@ def on_build(data):
             subject="Build exception"
         )
 
-        email.append(
-            "Build log: \n\t%s\n\nError: %r\n\nTraceback: %s\n" % (
-                "\n\t".join(getattr(data, "log", ['No log',])),
-                data,
-                getattr(data, '_tb', "No traceback")
-            ),
-            mimetype="text/plain"
-        )
+        email.append("Error: %r\n\nTraceback: %s\n\n" % (data, getattr(data, '_tb', "No traceback")))
+
+        FileAttachment(
+            "\n".join(getattr(data, "log", ['No log',])),
+            file_name='build.log',
+            content_type='text/plain'
+        ).attach(email)
+
     else:
         if context.settings.options.mail_map:
             recepient = context.settings.options.mail_map.get(data['sender'], context.settings.options.admin_mail)
@@ -122,10 +122,6 @@ def on_build(data):
             subject="[%s] <%s> Build %s" % (data.get('tag'), data.get('name'), 'successful' if data.get('status') else 'failed')
         )
 
-        FileAttachment(
-            "\n".join(data.get('build_log')),
-            file_name='build.log'
-        ).attach(email)
 
         email.append(
             "\n".join([
@@ -137,8 +133,15 @@ def on_build(data):
                 "Commit message: %s" % data.get('message'),
                 "Tag: %s" % data.get('tag'),
                 "Build timestamp: %s" % data.get('timestamp'),
-                "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None
+                "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None,
+                "\n\n"
             ]))
+
+        FileAttachment(
+            "\n".join(data.get('build_log')),
+            file_name='build.log',
+            content_type='text/plain'
+        ).attach(email)
 
         if context.settings.options.build_hooks:
             hook_data = json.dumps(data, sort_keys=False, encoding="utf-8")

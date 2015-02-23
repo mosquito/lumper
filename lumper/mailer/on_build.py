@@ -122,6 +122,11 @@ def on_build(data):
             subject="[%s] <%s> Build %s" % (data.get('tag'), data.get('name'), 'successful' if data.get('status') else 'failed')
         )
 
+        FileAttachment(
+            "\n".join(data.get('build_log')),
+            file_name='build.log'
+        ).attach(email)
+
         email.append(
             "\n".join([
                 "Build %s %s" % (data.get('name'), 'successful' if data.get('status') else 'failed'),
@@ -134,12 +139,6 @@ def on_build(data):
                 "Build timestamp: %s" % data.get('timestamp'),
                 "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None
             ]))
-
-        FileAttachment(
-            "\n".join(data.get('build_log')),
-            file_name='build.log',
-            content_type='text/plain'
-        ).attach(email)
 
         if context.settings.options.build_hooks:
             hook_data = json.dumps(data, sort_keys=False, encoding="utf-8")

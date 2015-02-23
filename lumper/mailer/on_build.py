@@ -106,7 +106,7 @@ def on_build(data):
 
         FileAttachment(
             "\n".join(getattr(data, "log", ['No log',])),
-            file_name='build.log',
+            file_name='build_log.txt',
             content_type='text/plain'
         ).attach(email)
 
@@ -139,7 +139,7 @@ def on_build(data):
 
         FileAttachment(
             "\n".join(data.get('build_log')),
-            file_name='build.log',
+            file_name='build_log.txt',
             content_type='text/plain'
         ).attach(email)
 

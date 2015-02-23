@@ -1,13 +1,31 @@
 #!/usr/bin/env python
 # encoding: utf-8
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import logging
-import smtplib
 import json
 import urllib2
 from crew.worker import context, Task
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email import Encoders
+import logging
+import smtplib
+
+
+class Attachment(object):
+    pass
+
+
+class FileAttachment(Attachment):
+    def __init__(self, data, file_name, content_type="application/octet-stream"):
+        self.part = MIMEBase('application', "octet-stream")
+        self.part.set_payload(data)
+        Encoders.encode_base64(self.part)
+        self.part.add_header('Content-Disposition', 'attachment; filename="{0}"'.format(file_name))
+
+    def attach(self, email):
+        assert isinstance(email, Email)
+        email.add_part(self.part)
 
 
 class Email(object):
@@ -36,6 +54,10 @@ class Email(object):
             return self.msg[key]
         else:
             return default
+
+    def add_part(self, part):
+        assert isinstance(part, MIMEBase)
+        self.msg.attach(part)
 
     def append(self, part, mimetype='plain'):
         prt = unicode(part)
@@ -110,9 +132,14 @@ def on_build(data):
                 "Commit message: %s" % data.get('message'),
                 "Tag: %s" % data.get('tag'),
                 "Build timestamp: %s" % data.get('timestamp'),
-                "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None,
-                "\nBuild log:\n\t%s" % "\n\t".join(data.get('build_log')),
+                "Build date: %s" % datetime.utcfromtimestamp(data['timestamp']) if data.get('timestamp') else None
             ]))
+
+        FileAttachment(
+            "\n".join(data.get('build_log')),
+            file_name='build.log',
+            content_type='text/plain'
+        ).attach(email)
 
         if context.settings.options.build_hooks:
             hook_data = json.dumps(data, sort_keys=False, encoding="utf-8")

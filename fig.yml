@@ -9,17 +9,22 @@ registry:
   image: registry:latest
   environment:
     SETTINGS_FLAVOR: local
+    SEARCH_BACKEND: sqlalchemy
   expose:
     - 5000
-  ports:
-    - 5500:5000
   volumes:
-    - /tmp/registry:/tmp/registry
+    - /storage/registry:/tmp/registry
+
+registryUI:
+  image: mosquito/docker-registry-ui:latest
+  ports:
+    - 80:80
 
 postfix:
   image: catatnight/postfix:latest
+  hostname: lumper.example.com
   environment:
-    maildomain: mail.example.com
+    maildomain: mail.lumper.example.com
     smtp_user: lumper:lumper
   expose:
     - 25
@@ -27,7 +32,9 @@ postfix:
 mailer:
   image: mosquito/lumper:latest
   entrypoint: /usr/local/bin/autorestart.sh
-  command: lumper mailer --admin-mail="admin@example.net" --smtp-host postfix --smtp-port 25 --smtp-user lumper --smtp-password lumper -a rabbitmq -U guest -P guest --logging=debug
+  command: lumper mailer --admin-mail="admin@example.com" --smtp-sender="build@example.com" --smtp-host postfix --smtp-port 25 --smtp-user lumper --smtp-password lumper -a rabbitmq -U guest -P guest --logging=debug --mail-map /tmp/mailmap.json
+  #volumes:
+  #  - /storage/mailmap.json:/tmp/mailmap.json
   links:
     - postfix
     - rabbitmq
@@ -38,14 +45,18 @@ worker:
     - rabbitmq
     - registry
   entrypoint: /usr/local/bin/autorestart.sh
-  command: lumper worker -a rabbitmq --docker-registry="registry:5000" --docker-url="tcp://172.18.42.1:4243" -U guest -P guest --logging=debug
+  command: lumper worker --docker-url="tcp://172.18.0.1:4142" -a rabbitmq --docker-registry="127.0.0.1:5000" -U guest -P guest --logging=debug --docker-publish
+  environment:
+    HOME: /root
+  volumes:
+    # add ssh keys there .ssh/{known_hosts,id_rsa} and add key to git[hub|lab]
+    - /storage/worker:/root
 
 backend:
   image: mosquito/lumper:latest
-  ports:
-    - 8000:8000
+  expose:
+    - 8000
   links:
     - rabbitmq
-  command: server -p 8000 -a 0.0.0.0 -A rabbitmq --user=guest --password=guest --logging=debug --github-secret=SUPERSECRET
-
+  command: server -p 8000 -a 0.0.0.0 -A rabbitmq --user=guest --password=guest --logging=debug -T 1800
 

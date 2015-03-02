@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
+import os
 import tornado.ioloop
 from tornado.web import Application
 from tornado.httpserver import HTTPServer
@@ -24,6 +25,7 @@ def run(args):
         reload=args.debug,
         gzip=args.gzip,
         crew=crew_client,
+        timeout=args.build_timeout)
     )
 
     http_server = HTTPServer(app, xheaders=True)

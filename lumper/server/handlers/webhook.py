@@ -77,7 +77,7 @@ class GitHubWebHookHandler(JSONRequest):
                     "sender": self.json['sender']['login']
                 }
 
-                self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=600)
+                self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=self.settings.get('timeout', 600))
                 self.response(True)
         else:
             self.response(False)
@@ -150,7 +150,7 @@ class CommonWebHookHandler(JSONRequest):
                     "sender": self.json['user_id']
                 }
 
-                self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=600)
+                self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=self.settings.get('timeout', 600))
                 self.response(True)
         else:
             self.response(False)

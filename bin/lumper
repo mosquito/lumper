@@ -39,6 +39,9 @@ if __name__ == "__main__":
     group.add_argument('--user', dest="rmq_user", help="RMQ virtual host", default=None)
     group.add_argument('--password', dest="rmq_password", help="RMQ virtual host", default=None)
 
+    group = subparser.add_argument_group("Task options")
+    group.add_argument('-T', '--timeout', dest="timeout", help="Build timeout", type=int, default=600)
+
     # Worker mode
     subparser = subparsers.add_parser("worker", help="Run in worker mode")
     subparser.add_argument("--config", action=LoadConfigAction)

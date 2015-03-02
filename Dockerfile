@@ -6,6 +6,7 @@ RUN                 apt-get update && \
 					apt-get clean
 
 ADD                 . /tmp/build/
+ADD                 autorestart.sh /usr/local/bin/autorestart.sh
 RUN                 pip install --upgrade --pre /tmp/build && rm -fr /tmp/build
 
 ENTRYPOINT          ["/usr/local/bin/lumper"]

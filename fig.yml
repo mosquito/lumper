@@ -1,0 +1,51 @@
+rabbitmq:
+  image: dockerfile/rabbitmq:latest
+  expose:
+    - 5672
+  ports:
+    - 15672:15672
+
+registry:
+  image: registry:latest
+  environment:
+    SETTINGS_FLAVOR: local
+  expose:
+    - 5000
+  ports:
+    - 5500:5000
+  volumes:
+    - /tmp/registry:/tmp/registry
+
+postfix:
+  image: catatnight/postfix:latest
+  environment:
+    maildomain: mail.example.com
+    smtp_user: lumper:lumper
+  expose:
+    - 25
+
+mailer:
+  image: mosquito/lumper:latest
+  entrypoint: /usr/local/bin/autorestart.sh
+  command: lumper mailer --admin-mail="admin@example.net" --smtp-host postfix --smtp-port 25 --smtp-user lumper --smtp-password lumper -a rabbitmq -U guest -P guest --logging=debug
+  links:
+    - postfix
+    - rabbitmq
+
+worker:
+  image: mosquito/lumper:latest
+  links:
+    - rabbitmq
+    - registry
+  entrypoint: /usr/local/bin/autorestart.sh
+  command: lumper worker -a rabbitmq --docker-registry="registry:5000" --docker-url="tcp://172.18.42.1:4243" -U guest -P guest --logging=debug
+
+backend:
+  image: mosquito/lumper:latest
+  ports:
+    - 8000:8000
+  links:
+    - rabbitmq
+  command: server -p 8000 -a 0.0.0.0 -A rabbitmq --user=guest --password=guest --logging=debug --github-secret=SUPERSECRET
+
+

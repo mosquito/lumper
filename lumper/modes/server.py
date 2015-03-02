@@ -25,7 +25,7 @@ def run(args):
         reload=args.debug,
         gzip=args.gzip,
         crew=crew_client,
-        timeout=args.build_timeout)
+        timeout=args.timeout
     )
 
     http_server = HTTPServer(app, xheaders=True)

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
+
+from time import time
 import logging
 import json
 import os
@@ -127,7 +129,51 @@ class BuildHandler(HandlerClass):
             sm.update(recursive=True, init=True)
             log.info(' Submodule "%s" updated', sm)
 
+        self.restore_commit_times(path)
+
         log.info("Preparing complete")
+
+    @staticmethod
+    def restore_commit_times(path):
+
+        def walk(tree):
+            ret = list()
+            for i in tree:
+                ret.append(i)
+                if i.type == 'tree':
+                    ret.extend(walk(i))
+            return ret
+
+        repo = git.Repo(path)
+
+        def find_mtimes(repo):
+            objects = walk(repo.tree())
+            tt = repo.head.commit.traverse()
+            ret = {}
+            while objects:
+                try:
+                    t = next(tt)
+                except StopIteration:
+                    break
+                hashes = set(i.binsha for i in t.tree)
+                # iterate over reversed list to be able to remove elements by index
+                for n, i in reversed(list(enumerate(objects))):
+                    if i.binsha not in hashes:
+                        del objects[n]
+                    else:
+                        if i.path not in ret or t.authored_date < ret[i.path]:
+                            ret[i.path] = t.authored_date
+            return ret
+
+        now = int(time())
+
+        for i, mtime in find_mtimes(repo).items():
+            os.utime(os.path.join(path, i), (now, mtime))
+
+        for sm in repo.submodules:
+            sm_repo = git.Repo(os.path.join(repo.git_dir, 'modules', sm.name))
+            for i, mtime in find_mtimes(sm_repo).items():
+                os.utime(os.path.join(path, sm.path, i), (now, mtime))
 
     def build(self, path):
         tag = ("%s:%s" % (self.data['name'], self.data['tag'].lstrip("v"))).lower()

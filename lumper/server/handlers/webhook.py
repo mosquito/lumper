@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import json
+
 from time import time
 import tornado.web
 import tornado.gen
@@ -147,7 +147,7 @@ class CommonWebHookHandler(JSONRequest):
                     "message": commit.get('message', '<No message>'),
                     "timestamp": arrow.get(commit.get('timestamp', time())).timestamp,
                     "name": repo_name,
-                    "sender": self.json['user_id']
+                    "sender": str(self.json['user_id']),
                 }
 
                 self.settings['crew'].call("build", data, routing_key="crew.tasks.build.finished", expiration=self.settings.get('timeout', 600))

@@ -18,7 +18,7 @@ registry:
 registryUI:
   image: mosquito/docker-registry-ui:latest
   ports:
-    - 80:80
+    - 8081:80
 
 postfix:
   image: catatnight/postfix:latest

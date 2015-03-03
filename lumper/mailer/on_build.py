@@ -119,7 +119,11 @@ def on_build(data):
         email = Email(
             sender=context.settings.smtp.sender,
             recipient=recepient,
-            subject="[%s] <%s> Build %s" % (data.get('tag'), data.get('name'), 'successful' if data.get('status') else 'failed')
+            subject="[%s] <%s> Build %s" % (
+                data.get('tag'),
+                data.get('name'),
+                'successful' if data.get('status') else 'failed'
+            )
         )
 
 

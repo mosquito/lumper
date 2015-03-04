@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from time import time
 import logging
 import json
 import os
@@ -136,6 +135,8 @@ class BuildHandler(HandlerClass):
     @staticmethod
     def restore_commit_times(path):
 
+        log.info("Restoring file mtimes for path:", path)
+
         def walk(tree):
             ret = list()
             for i in tree:
@@ -165,15 +166,17 @@ class BuildHandler(HandlerClass):
                             ret[i.path] = t.authored_date
             return ret
 
-        now = int(time())
-
         for i, mtime in find_mtimes(repo).items():
-            os.utime(os.path.join(path, i), (now, mtime))
+            fname = os.path.join(path, i)
+            log.debug("%s %s", mtime, fname)
+            os.utime(fname, (mtime, mtime))
 
         for sm in repo.submodules:
             sm_repo = git.Repo(os.path.join(repo.git_dir, 'modules', sm.name))
             for i, mtime in find_mtimes(sm_repo).items():
-                os.utime(os.path.join(path, sm.path, i), (now, mtime))
+                fname = os.path.join(path, sm.path, i)
+                log.debug("%s %s", mtime, fname)
+                os.utime(fname, (mtime, mtime))
 
     def build(self, path):
         tag = ("%s:%s" % (self.data['name'], self.data['tag'].lstrip("v"))).lower()

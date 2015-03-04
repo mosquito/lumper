@@ -135,7 +135,7 @@ class BuildHandler(HandlerClass):
     @staticmethod
     def restore_commit_times(path):
 
-        log.info("Restoring file mtimes for path:", path)
+        log.info("Restoring file mtimes for path: %s", path)
 
         def walk(tree):
             ret = list()

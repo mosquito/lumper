@@ -149,14 +149,11 @@ class BuildHandler(HandlerClass):
 
         def find_mtimes(repo):
             objects = walk(repo.tree())
-            tt = repo.head.commit.traverse()
+            t = repo.head.commit
+            tt = t.traverse()
             ret = {}
             while objects:
-                try:
-                    t = next(tt)
-                except StopIteration:
-                    break
-                hashes = set(i.binsha for i in t.tree)
+                hashes = set(i.binsha for i in walk(t.tree))
                 # iterate over reversed list to be able to remove elements by index
                 for n, i in reversed(list(enumerate(objects))):
                     if i.binsha not in hashes:
@@ -164,6 +161,10 @@ class BuildHandler(HandlerClass):
                     else:
                         if i.path not in ret or t.authored_date < ret[i.path]:
                             ret[i.path] = t.authored_date
+                try:
+                    t = next(tt)
+                except StopIteration:
+                    break
             return ret
 
         for i, mtime in find_mtimes(repo).items():

@@ -17,7 +17,7 @@ def run(args):
     else:
         tls = False
 
-    docker_client = docker.Client(base_url=args.docker_url, tls=tls, timeout=5)
+    docker_client = docker.Client(base_url=args.docker_url, tls=tls, timeout=300)
     docker_client.verify = args.docker_tls_strict
 
     try:

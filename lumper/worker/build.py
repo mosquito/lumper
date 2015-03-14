@@ -180,9 +180,12 @@ class BuildHandler(HandlerClass):
                 os.utime(fname, (mtime, mtime))
 
     def build(self, path):
+        log.debug("Start building...")
         tag = ("%s:%s" % (self.data['name'], self.data['tag'].lstrip("v"))).lower()
+        log.debug("Selecting tag: %s", tag)
 
         self.build_log = []
+        log.debug('Building')
         for line in self.docker.build(path, pull=True, rm=True, forcerm=True, tag=tag):
             chunk = json.loads(line)
             stream = chunk.get("stream", "").rstrip("\n\r")
@@ -199,6 +202,7 @@ class BuildHandler(HandlerClass):
                 err = chunk['error'].strip("\n\r")
                 log.error(err)
                 self.build_log.append(err)
+                log.error(chunk.get('error'))
                 raise StandardError(chunk['error'])
 
     def resolve_image_id(self, image_id):

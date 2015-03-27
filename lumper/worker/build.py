@@ -17,6 +17,7 @@ log = logging.getLogger("builder")
 
 
 class TempoaryFolder(object):
+
     def __init__(self):
         self._dir = os.path.join(gettempdir(), str(uuid4()))
         self._curdir = os.path.abspath(os.getcwd())
@@ -186,24 +187,27 @@ class BuildHandler(HandlerClass):
 
         self.build_log = []
         log.debug('Building')
-        for line in self.docker.build(path, pull=True, rm=True, forcerm=True, tag=tag):
-            chunk = json.loads(line)
-            stream = chunk.get("stream", "").rstrip("\n\r")
-            if stream:
-                success = self.STREAM_EXPR['build_success'].match(stream)
-                self.build_log.append(stream)
-                if success:
-                    self.data['status'] = True
-                    return success.groupdict()['id']
-                else:
-                    log.info(stream)
+        try:
+            for line in self.docker.build(path, rm=True, tag=tag):
+                chunk = json.loads(line)
+                stream = chunk.get("stream", "").rstrip("\n\r")
+                if stream:
+                    success = self.STREAM_EXPR['build_success'].match(stream)
+                    self.build_log.append(stream)
+                    if success:
+                        self.data['status'] = True
+                        return success.groupdict()['id']
+                    else:
+                        log.info(stream)
 
-            elif chunk.get("error"):
-                err = chunk['error'].strip("\n\r")
-                log.error(err)
-                self.build_log.append(err)
-                log.error(chunk.get('error'))
-                raise StandardError(chunk['error'])
+                elif chunk.get("error"):
+                    err = chunk['error'].strip("\n\r")
+                    log.error(err)
+                    self.build_log.append(err)
+                    log.error(chunk.get('error'))
+                    raise StandardError(chunk['error'])
+        except Exception as e:
+            log.exception(e)
 
     def resolve_image_id(self, image_id):
         self.docker.images()

@@ -119,13 +119,20 @@ class BuildHandler(HandlerClass):
         if registry:
             url = "%s://%s" % ('https' if use_ssl else 'http', registry)
             try:
+                log.debug("Trying to fetch image id")
                 img_id = filter(lambda x: str(x[0]) == str(tag), requests.get("%s/v1/repositories/%s/tags" % (url, name)).json().items())[0][1]
-                requests.delete("%s/v1/repositories/%s/tags/latest" % (url, name))
-                requests.put(
+                log.info('Pushing successful as %s', img_id)
+                log.debug("Deleting tag: latest")
+                resp = requests.delete("%s/v1/repositories/%s/tags/latest" % (url, name))
+                log.debug('%s', resp.json())
+
+                log.debug("Setting latest tag as %s", img_id)
+                resp = requests.put(
                     "%s/v1/repositories/%s/tags/latest" % (url, name),
                     '"%s"' % img_id,
                     headers={'Content-Type': 'application/json'}
                 )
+                log.debug('%s', resp.json())
             except Exception:
                 self.build_log.append("ERROR: Can't fetch image id from registry \"%s\"" % url)
 

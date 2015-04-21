@@ -19,7 +19,7 @@ class Attachment(object):
 class FileAttachment(Attachment):
     def __init__(self, data, file_name, content_type="application/octet-stream"):
         self.part = MIMEBase('application', "octet-stream")
-        self.part.set_payload(data)
+        self.part.set_payload(data.encode('utf-8'))
         Encoders.encode_base64(self.part)
         self.part.add_header('Content-Disposition', 'attachment; filename="{0}"'.format(file_name))
 

@@ -177,7 +177,7 @@ class BuildHandler(HandlerClass):
             sm_repo = git.Repo(os.path.join(repo.git_dir, 'modules', sm.name))
             for i, mtime in find_mtimes(sm_repo).items():
                 fname = os.path.join(path, sm.path, i)
-                log.debug("%s %s", mtime, fname)
+                log.debug(u"%s %s", mtime, fname)
                 os.utime(fname, (mtime, mtime))
 
     def build(self, path):

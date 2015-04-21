@@ -8,6 +8,7 @@ import shutil
 import traceback
 import git
 import re
+import requests
 
 from crew.worker import context, HandlerClass
 from uuid import uuid4
@@ -16,7 +17,7 @@ from tempfile import gettempdir
 log = logging.getLogger("builder")
 
 
-class TempoaryFolder(object):
+class TemporaryFolder(object):
 
     def __init__(self):
         self._dir = os.path.join(gettempdir(), str(uuid4()))
@@ -51,7 +52,7 @@ class BuildHandler(HandlerClass):
             self.git = git.Git()
             self.docker = context.settings.docker
 
-            with TempoaryFolder() as path:
+            with TemporaryFolder() as path:
                 self.prepare(path)
                 try:
                     self.data.update({"id": self.build(path)})
@@ -95,7 +96,9 @@ class BuildHandler(HandlerClass):
 
         response = self.docker.push(
             repo, tag=tag,
-            insecure_registry=not use_ssl, stream=True)
+            insecure_registry=not use_ssl,
+            stream=True
+        )
 
         self.build_log.append('')
         self.build_log.append(
@@ -113,10 +116,23 @@ class BuildHandler(HandlerClass):
             else:
                 log.debug(data)
 
+        if registry:
+            url = "%s://%s" % ('https' if use_ssl else 'http', registry)
+            try:
+                img_id = filter(lambda x: str(x[0]) == str(tag), requests.get("%s/v1/repositories/%s/tags" % (url, name)).json().items())[0][1]
+                requests.delete("%s/v1/repositories/%s/tags/latest" % (url, name))
+                requests.put(
+                    "%s/v1/repositories/%s/tags/latest" % (url, name),
+                    '"%s"' % img_id,
+                    headers={'Content-Type': 'application/json'}
+                )
+            except Exception:
+                self.build_log.append("ERROR: Can't fetch image id from registry \"%s\"" % url)
+
     def prepare(self, path):
         url = self.data['repo']
         log.info('Cloning repo "%s" => "%s"', url, path)
-        res = self.git.clone(url, path)
+        res = self.git.clone(url, path, recursive=True)
         log.debug("Cloning result: %s", res)
 
         commit_hash = self.data['commit']
@@ -174,7 +190,12 @@ class BuildHandler(HandlerClass):
             os.utime(fname.encode('utf-8'), (mtime, mtime))
 
         for sm in repo.submodules:
-            sm_repo = git.Repo(os.path.join(repo.git_dir, 'modules', sm.name))
+            sm_internal_path = os.path.join(repo.git_dir, 'modules', sm.name)
+            if os.path.exists(sm_internal_path):
+                sm_repo = git.Repo(sm_internal_path)
+            else:
+                sm_repo = git.Repo(sm.path)
+
             for i, mtime in find_mtimes(sm_repo).items():
                 fname = os.path.join(path, sm.path, i)
                 log.debug(u"%s %s", mtime, fname)

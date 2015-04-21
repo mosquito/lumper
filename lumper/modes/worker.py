@@ -8,12 +8,13 @@ import docker
 import docker.tls
 import lumper.worker
 
+
 def run(args):
     log = logging.getLogger("main")
 
     if args.docker_tls:
-        tls=docker.tls.TLSConfig(client_cert=(args.docker_client_cert, args.docker_client_key),
-                                 ca_cert=args.docker_ca_cert, assert_hostname=False)
+        tls = docker.tls.TLSConfig(client_cert=(args.docker_client_cert, args.docker_client_key),
+                                   ca_cert=args.docker_ca_cert, assert_hostname=False)
     else:
         tls = False
 
@@ -34,7 +35,7 @@ def run(args):
                 options=args,
                 node_uuid=NODE_UUID,
                 uuid=UUID,
-                heartbeat_counter = 0,
+                heartbeat_counter=0,
                 docker=docker_client
             )
         ).loop()

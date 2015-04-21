@@ -178,7 +178,7 @@ class BuildHandler(HandlerClass):
             for i, mtime in find_mtimes(sm_repo).items():
                 fname = os.path.join(path, sm.path, i)
                 log.debug(u"%s %s", mtime, fname)
-                os.utime(fname, (mtime, mtime))
+                os.utime(fname.encode('utf-8'), (mtime, mtime))
 
     def build(self, path):
         log.debug("Start building...")

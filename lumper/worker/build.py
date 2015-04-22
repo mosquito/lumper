@@ -139,12 +139,13 @@ class BuildHandler(HandlerClass):
     def prepare(self, path):
         url = self.data['repo']
         log.info('Cloning repo "%s" => "%s"', url, path)
-        res = self.git.clone(url, path, recursive=True)
+        res = self.git.clone(url, path)
         log.debug("Cloning result: %s", res)
 
         commit_hash = self.data['commit']
         log.info('Checkout commit "%s"', commit_hash)
         self.git.checkout(commit_hash)
+        self.git.submodule("update", "--recursive", "--init")
 
         log.info('Updating submodules')
         for sm in git.Repo(path).submodules:

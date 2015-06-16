@@ -22,7 +22,7 @@ except ImportError:
     from distutils.core import setup
 
 
-__version__ = '0.2.25'
+__version__ = '0.3.0'
 __author__ = 'Dmitry Orlov <me@mosquito.su>'
 
 
@@ -30,7 +30,7 @@ supports = {
     'install_requires': [
         'tornado',
         'arconfig',
-        'crew',
+        'crew>=0.8.9',
         'gitpython',
         'docker-py',
         'arrow'

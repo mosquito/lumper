@@ -1,0 +1,77 @@
+#!/usr/bin/env python2
+# encoding: utf-8
+import sys
+import time
+import logging
+from argparse import ArgumentParser
+from crew.master.threaded_client import Client
+
+logging.basicConfig(level='INFO')
+
+parser = ArgumentParser()
+parser.add_argument('-H', '--host', dest="amqp_host", help="AMQP Host", default="localhost")
+parser.add_argument('-P', '--port', dest="amqp_port", help="AMQP Port", default=5672, type=int)
+parser.add_argument('-V', '--vhost', dest="amqp_vhost", help="AMQP VHost", default="/")
+parser.add_argument('-u', '--username', dest="amqp_user", help="AMQP User", default="guest")
+parser.add_argument('-p', '--password', dest="amqp_password", help="AMQP Password", default="guest")
+parser.add_argument('-T', '--timeout', dest="build_timeout", help="Timeout", default=1200, type=int)
+parser.add_argument('-t', '--tag', required=True, dest='tag', help='Append this tag to build')
+parser.add_argument('--user', default='Lumper CLI', help="Client name")
+
+parser.add_argument('url')
+parser.add_argument('commit')
+parser.add_argument('repo_name')
+
+
+def exit_with_error(code=1, msg=None):
+    if msg:
+        sys.stderr.write("%s\n" % str(msg))
+    exit(code)
+
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+
+    try:
+        client = Client(
+            host=args.amqp_host,
+            port=args.amqp_port,
+            user=args.amqp_user,
+            password=args.amqp_password,
+            vhost=args.amqp_vhost
+        )
+    except Exception as e:
+        exit_with_error(32, e)
+
+    result = client.call(
+        "build",
+        {
+            "tag": args.tag,
+            "repo": args.url,
+            "commit": args.commit,
+            "timestamp": time.time(),
+            "name": args.repo_name,
+            "sender": args.user,
+        },
+        expiration=args.build_timeout
+    )
+
+    try:
+        data = result.wait(args.build_timeout)
+
+        sys.stderr.write("\n".join(data.get('build_log')))
+
+        sys.stdout.write("\n".join([
+            "Build %s %s" % (data.get('name'), 'successful' if data.get('status') else 'failed'),
+            "\n",
+            "Sender: %s" % data.get('sender'),
+            "Repository: %s" % data.get('repo'),
+            "Commit: %s" % data.get('commit'),
+            "Commit message: %s" % data.get('message'),
+            "Tag: %s" % data.get('tag'),
+            "Build timestamp: %s" % data.get('timestamp'),
+            "\n\n"
+        ]))
+
+    except Exception as e:
+        exit_with_error(128, e)
